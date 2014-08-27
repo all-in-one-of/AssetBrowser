@@ -2,8 +2,12 @@ import copy
 
 node = hou.pwd()
 geo = node.geometry()
-nodeMultiplier = 1
+nodeMultiplier = 0.3
 numOfIterations = num
+KILLDISTANCE = 1
+def lengthVector(vVector):
+	vVector = math.sqrt(vVector[0]**2 + vVector[1]**2 + vVector[2]**2)	
+	return vVector
 
 class treeNode(object):
 	"""TreeNode element"""
@@ -28,14 +32,17 @@ class treeNode(object):
 			return -1
 
 		else:
-			##print "num of Influencors" + str(self.numOfInfluencors)
 			counter = 0
 			for i in self.attractionCandidates:
 				counter += 1
 				#Calculate the Vectors from the Currents Nodes Position
 				abVector = (i[0] - self.position[0], i[1] - self.position[1], i[2] - self.position[2])
-				##print "Distance Vector  " + str(abVector) + "\n"
+				#print "Distance Vector  " + str(abVector) + "\n"
 				#print "I am Node  " + str(self.position) + " Closest Point is" + str(i) + "\n"
+				print "Length of Vector" +  str(lengthVector(abVector))
+				if lengthVector(abVector) < KILLDISTANCE:
+				 	attractionPointsKill.append(i)
+				 	print "deleted"
 
 
 				self.averagePosition[0] += abVector[0] #i[0]
@@ -61,7 +68,6 @@ class treeNode(object):
 		self.nextNodesPosition = hou.Vector3(0.0, 0.0, 0.0)
 
 
-
 def testUnit(uVector):
 	uLength = math.sqrt(uVector[0]**2 + uVector[1]**2 + uVector[2]**2)
 
@@ -75,6 +81,7 @@ def testUnit(uVector):
 
 treeNodes = list()
 treeNodesHelper = list()
+attractionPointsKill = list()
 
 pointKeys = dict()
 
@@ -85,18 +92,6 @@ Candidates = set()
 firstTreeNode = treeNode(hou.Vector3(0.0, 0.0, 0.0))
 treeNodes.append(firstTreeNode)
 
-#secondTreeNode = treeNode(hou.Vector3(-2.0, 0.0, 0.0))
-#treeNodes.append(secondTreeNode)
-
-
-#Populate Node Tree
-#for j in treeNodes:
-#	treeNodesHelper.append(j.getPosition())
-
-
-
-##print treeNodesHelper.index((0.0, 1.0, 0.0))
-
 
 #Prepare list for kd-tree
 for points in geo.points():
@@ -105,11 +100,13 @@ for points in geo.points():
     hashString = str(currentPosition[0]) + str(currentPosition[1]) + str(currentPosition[2])
     pointKeys[hashString] = points.number()
 
-#Bild Tree from input
-tree = KDTree.construct_from_data(attractionPoints)
+
 counter = 0
 
 for i in range(0,numOfIterations):
+	#Bild Tree from input
+	tree = KDTree.construct_from_data(attractionPoints)
+	del attractionPointsKill[:]
 	#Populate Node Tree
 	del treeNodesHelper[:]
 
@@ -126,12 +123,7 @@ for i in range(0,numOfIterations):
 	#
 	trashTreeHelper = copy.deepcopy(treeNodesHelper)
 	NodesTree = KDTree.construct_from_data(trashTreeHelper) #CONSTRUCT FROM DATA juggles the order!
-	#print "##### overall debug AFTER TREE ######"
-	#for i in treeNodes: 
-		#print i.position
-	#print "\n\n"
-	#print str(treeNodesHelper)
-	#print "##### overall debug END ######" + "\n"	
+
 	helperList = list()
 	#Find Candidates
 	Candidates = set()
@@ -147,7 +139,6 @@ for i in range(0,numOfIterations):
 		currentNodeIndex = treeNodesHelper.index(nearestNode[0])
 		#print "Candidate: " + str((i[0], i[1], i[2])) + " ASSOC WITH*: " + str(nearestNode[0]) +"\n " +  "\nIndex*:" +str(currentNodeIndex) + " "+ str(treeNodes[currentNodeIndex].position)
 		treeNodes[currentNodeIndex].attractionCandidates.append(i)
-		#print "current Attraction Canddiates: " + str(treeNodes[currentNodeIndex].attractionCandidates) + "\n"
 
 
 
@@ -160,23 +151,23 @@ for i in range(0,numOfIterations):
 			#nodesCounter += 1
 			if i.calculateAverageDir() != -1: #maybe do it on the fly?
 				#print "====== next Node " + str(i.getPosition()) +" ===== \n"
-				#print str(i.position)
-
-				##print "function next noden" + str(i.createNextNode())
 				nextNodesPosition = i.createNextNode()
-				##print "Previous Tree-Nodes Position: " + str(i.getPosition())
 				nextAveragePos = hou.Vector3(nextNodesPosition[0] +i.getPosition()[0] , nextNodesPosition[1] +i.getPosition()[1], nextNodesPosition[2] +i.getPosition()[2])
 				nextNode = treeNode(nextAveragePos)
 				treeNodes.append(nextNode)
 				
 				i.resetAll()
-			else:
-				print "this node has no candidates " + str(i.getPosition())
+			#else:
+			#	print "this node has no candidates " + str(i.getPosition())
 
 		nodesCounter += 1
 
 	#treeNodes.extend(helperList)
 	counter += 1
+	for i in attractionPointsKill:
+		print "deleted point: " + str(i)
+		attractionPoints.remove(i)
+		
 
 
 #Create a visual feedback (debug)
