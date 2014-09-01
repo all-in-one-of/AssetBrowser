@@ -16,10 +16,11 @@ class treeNode(object):
 		self.position = position
 		self.attractionCandidates = list()
 		self.averagePosition = hou.Vector3(0.0, 0.0, 0.0)
-		self.averagePositionNormalized = hou.Vector3(0.0, 0.0, 0.0)
+		self.directionVector = hou.Vector3(0.0, 0.0, 0.0)
 		self.nextNodesPosition = hou.Vector3(0.0, 0.0, 0.0)
 		self.numOfInfluencors = 0
 		self.candidates = set()
+		self.age = 0
 
 	def getPosition(self):
 		return (self.position[0], self.position[1], self.position[2])
@@ -39,10 +40,10 @@ class treeNode(object):
 				abVector = (i[0] - self.position[0], i[1] - self.position[1], i[2] - self.position[2])
 				#print "Distance Vector  " + str(abVector) + "\n"
 				#print "I am Node  " + str(self.position) + " Closest Point is" + str(i) + "\n"
-				print "Length of Vector" +  str(lengthVector(abVector))
+				#print "Length of Vector" +  str(lengthVector(abVector))
 				if lengthVector(abVector) < KILLDISTANCE:
 				 	attractionPointsKill.append(i)
-				 	print "deleted"
+				 	#print "deleted"
 
 
 				self.averagePosition[0] += abVector[0] #i[0]
@@ -56,14 +57,14 @@ class treeNode(object):
 			return self.averagePosition
 
 	def createNextNode(self):
-		self.averagePositionNormalized = self.averagePosition.normalized()
-		self.nextNodesPosition = hou.Vector3(self.averagePositionNormalized[0] * nodeMultiplier, self.averagePositionNormalized[1] * nodeMultiplier, self.averagePositionNormalized[2] * nodeMultiplier)
+		self.directionVector = self.averagePosition.normalized()
+		self.nextNodesPosition = hou.Vector3(self.directionVector[0] * nodeMultiplier, self.directionVector[1] * nodeMultiplier, self.directionVector[2] * nodeMultiplier)
 		return self.nextNodesPosition
 
 	def resetAll(self):
 		self.numOfInfluencors = 0
 		self.averagePosition = hou.Vector3(0.0, 0.0, 0.0)
-		self.averagePositionNormalized = hou.Vector3(0.0, 0.0, 0.0)
+		#self.directionVector = hou.Vector3(0.0, 0.0, 0.0)
 		self.attractionCandidates = list()
 		self.nextNodesPosition = hou.Vector3(0.0, 0.0, 0.0)
 
@@ -154,6 +155,7 @@ for i in range(0,numOfIterations):
 				nextNodesPosition = i.createNextNode()
 				nextAveragePos = hou.Vector3(nextNodesPosition[0] +i.getPosition()[0] , nextNodesPosition[1] +i.getPosition()[1], nextNodesPosition[2] +i.getPosition()[2])
 				nextNode = treeNode(nextAveragePos)
+				nextNode.age = counter
 				treeNodes.append(nextNode)
 				
 				i.resetAll()
@@ -165,7 +167,7 @@ for i in range(0,numOfIterations):
 	#treeNodes.extend(helperList)
 	counter += 1
 	for i in attractionPointsKill:
-		print "deleted point: " + str(i)
+		#print "deleted point: " + str(i)
 		attractionPoints.remove(i)
 		
 
@@ -176,6 +178,8 @@ for i in treeNodes:
 	tmp = geo.createPoint()
 	tmp.setAttribValue("P", i.position)
 	tmp.setAttribValue("Cd", hou.Vector3(0.0, 1.0, 0.0))
+	tmp.setAttribValue("direction", i.directionVector)
+	tmp.setAttribValue("age", i.age)
 
 
 #print("===== END =====")
